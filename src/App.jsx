@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { openDB } from "idb";
 import * as pdfjsLib from "pdfjs-dist";
+import { createWorker } from "tesseract.js";
 import "./App.css";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -43,6 +44,39 @@ async function removePDF(id) {
 }
 
 function App() {
+  async function scanQuestion(event) {
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  setLoading(true);
+
+  try {
+    const worker = await createWorker("eng");
+
+    const result = await worker.recognize(file);
+
+    const scannedText = result.data.text.trim();
+
+    await worker.terminate();
+
+    if (!scannedText) {
+      alert("Could not read the question. Please take a clearer photo.");
+      return;
+    }
+
+    setQuestion(scannedText);
+
+    alert("Question scanned successfully!");
+
+  } catch (error) {
+    console.error("OCR error:", error);
+    alert("OCR failed. Please try again.");
+  } finally {
+    setLoading(false);
+    event.target.value = "";
+  }
+}
   const [pdfs, setPdfs] = useState([]);
   const [question, setQuestion] = useState("");
   const [results, setResults] = useState([]);
@@ -275,9 +309,17 @@ function App() {
             🔎 Search
           </button>
 
-          <button className="scan-button">
-            📷 Scan Question
-          </button>
+          <label className="scan-button">
+  📷 Scan Question
+
+  <input
+    type="file"
+    accept="image/*"
+    capture="environment"
+    onChange={scanQuestion}
+    hidden
+  />
+</label>
 
         </section>
 
